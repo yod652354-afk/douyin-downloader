@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "抖音收藏下载器",
+  "version": "1.0.0",
+  "description": "自动下载抖音收藏夹中的视频，模拟观看行为规避检测",
+  "permissions": [
+    "downloads",
+    "storage",
+    "tabs",
+    "scripting",
+    "webRequest",
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "*://*.douyin.com/*",
+    "*://*.douyinvod.com/*",
+    "*://*.douyinpic.com/*",
+    "*://*.tiktokv.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://www.douyin.com/*"],
+      "js": ["content_main.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["*://www.douyin.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html"
+  }
+}
