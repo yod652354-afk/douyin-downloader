@@ -18,6 +18,7 @@ const VIDEO_STATUS = {
   pending: ['等待中', 'vs-pending'],
   watching: ['观看中', 'vs-watching'],
   downloading: ['下载中', 'vs-downloading'],
+  fetching_comments: ['截图评论', 'vs-fetching'],
   done: ['✓ 完成', 'vs-done'],
   failed: ['✗ 失败', 'vs-failed']
 };
@@ -25,12 +26,47 @@ const VIDEO_STATUS = {
 let currentState = null;
 let toastTimer = null;
 
+// 目录名：从 storage 读取，默认 "抖音下载"
+const folderInput = $('folder-name');
+chrome.storage.local.get('downloadFolder', (data) => {
+  const val = data.downloadFolder || '抖音下载';
+  folderInput.value = val;
+  chrome.runtime.sendMessage({ type: 'CMD_SET_FOLDER', folder: val });
+});
+folderInput.addEventListener('change', () => {
+  const val = folderInput.value.trim() || '抖音下载';
+  chrome.storage.local.set({ downloadFolder: val });
+  chrome.runtime.sendMessage({ type: 'CMD_SET_FOLDER', folder: val });
+});
+
 function showToast(msg) {
   const toast = $('toast');
   toast.textContent = msg;
   toast.classList.remove('hidden');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.add('hidden'), 4000);
+}
+
+// 日志渲染
+const LOG_ICONS = { info: 'ℹ', warn: '⚠', error: '✗', success: '✓' };
+
+function renderLogs(logs) {
+  const list = $('log-list');
+  if (!logs || logs.length === 0) {
+    list.innerHTML = '<div style="color:#555;text-align:center;padding:8px 0;">暂无日志</div>';
+    return;
+  }
+  // 只显示最近的 100 条
+  const items = logs.slice(-100);
+  list.innerHTML = items.map(l => {
+    const icon = LOG_ICONS[l.type] || 'ℹ';
+    return `<div class="log-item">
+      <span class="log-ts">${l.ts}</span>
+      <span class="log-icon ${l.type}">${icon}</span>
+      <span class="log-msg ${l.type}">${l.msg}</span>
+    </div>`;
+  }).join('');
+  list.scrollTop = list.scrollHeight;
 }
 
 function updateUI(state) {
@@ -43,7 +79,7 @@ function updateUI(state) {
   badge.textContent = label;
   badge.className = 'badge badge-' + cls;
 
-  // 队列区域（无论是否有数据都显示，因为随时会被推入）
+  // 队列区域
   $('queue-section').classList.remove('hidden');
   const total = state.queue ? state.queue.length : 0;
   
@@ -93,9 +129,11 @@ function updateUI(state) {
   // 显示错误提示
   if (state.error) {
     showToast(state.error);
-    // 清除错误避免重复弹窗
     chrome.runtime.sendMessage({ type: 'STATE_UPDATE', state: { ...state, error: null } });
   }
+
+  // 渲染日志
+  renderLogs(state.logs);
 }
 
 // 按钮事件
@@ -115,6 +153,10 @@ $('btn-rescan').addEventListener('click', () => {
   if (confirm('确认要清空所有待下载列表并重新扫描吗？')) {
     chrome.runtime.sendMessage({ type: 'CMD_SCAN' });
   }
+});
+
+$('btn-clear-logs').addEventListener('click', () => {
+  chrome.runtime.sendMessage({ type: 'CMD_CLEAR_LOGS' });
 });
 
 // 接收状态更新

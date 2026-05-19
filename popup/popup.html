@@ -16,6 +16,11 @@
     <div id="status-badge" class="badge badge-idle">空闲</div>
   </header>
 
+  <div class="folder-setting">
+    <label class="folder-label">下载目录：</label>
+    <input id="folder-name" type="text" class="folder-input" placeholder="抖音下载" maxlength="30">
+  </div>
+
   <div class="card" id="scan-section">
     <p class="hint" style="color: #4ade80;">✅ 自动拦截模式已开启</p>
     <p class="hint" style="margin-bottom:0;">请在抖音收藏页<strong>向下滚动网页</strong>，插件会自动抓取加载的视频。</p>
@@ -54,6 +59,15 @@
 
     <div id="video-list" class="video-list"></div>
   </div>
+
+  <div id="log-section" class="card">
+    <div class="log-header">
+      <span class="log-title">运行日志</span>
+      <button id="btn-clear-logs" class="btn-log-clear">清空</button>
+    </div>
+    <div id="log-list" class="log-list">暂无日志</div>
+  </div>
+
   <div id="toast" class="toast hidden"></div>
 </div>
 <script src="popup.js"></script>
