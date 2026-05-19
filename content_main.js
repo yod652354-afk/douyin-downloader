@@ -9,7 +9,7 @@ function parseVideos(awemeList) {
     let bestUrl = urlList[0] || '';
     
     if (bitrateList.length > 0) {
-      const sorted = bitrateList.sort((a, b) => (b.bit_rate || 0) - (a.bit_rate || 0));
+      const sorted = [...bitrateList].sort((a, b) => (b.bit_rate || 0) - (a.bit_rate || 0));
       const bestUrls = sorted[0]?.play_addr?.url_list || [];
       if (bestUrls[0]) bestUrl = bestUrls[0];
     }

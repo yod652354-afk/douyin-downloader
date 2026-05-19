@@ -1,5 +1,11 @@
 const $ = id => document.getElementById(id);
 
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.appendChild(document.createTextNode(str));
+  return div.innerHTML;
+}
+
 const STATUS_LABELS = {
   idle: ['空闲', 'idle'],
   scanning: ['扫描中...', 'scanning'],
@@ -17,6 +23,15 @@ const VIDEO_STATUS = {
 };
 
 let currentState = null;
+let toastTimer = null;
+
+function showToast(msg) {
+  const toast = $('toast');
+  toast.textContent = msg;
+  toast.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.add('hidden'), 4000);
+}
 
 function updateUI(state) {
   if (!state) return;
@@ -61,8 +76,8 @@ function updateUI(state) {
         <div class="video-item ${v.status}">
           <img class="video-thumb" src="${v.cover || ''}" onerror="this.style.display='none'">
           <div class="video-info">
-            <div class="video-title">${v.title}</div>
-            <div class="video-meta">${waitInfo}</div>
+            <div class="video-title">${escapeHtml(v.title)}</div>
+            <div class="video-meta">${escapeHtml(waitInfo)}</div>
           </div>
           <span class="video-status ${sCls}">${sLabel}</span>
         </div>
@@ -77,7 +92,7 @@ function updateUI(state) {
 
   // 显示错误提示
   if (state.error) {
-    alert(state.error);
+    showToast(state.error);
     // 清除错误避免重复弹窗
     chrome.runtime.sendMessage({ type: 'STATE_UPDATE', state: { ...state, error: null } });
   }
@@ -97,9 +112,8 @@ $('btn-resume').addEventListener('click', () => {
 });
 
 $('btn-rescan').addEventListener('click', () => {
-  // 现在 rescan 按钮充当“清空队列”的功能
-  if (confirm('确认要清空当前所有待下载列表吗？')) {
-    chrome.runtime.sendMessage({ type: 'CMD_SCAN' }); // 在后台处理清空
+  if (confirm('确认要清空所有待下载列表并重新扫描吗？')) {
+    chrome.runtime.sendMessage({ type: 'CMD_SCAN' });
   }
 });
 

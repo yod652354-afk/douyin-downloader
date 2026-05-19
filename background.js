@@ -55,6 +55,7 @@ async function downloadVideo(video) {
 
 // 处理下载队列
 async function processQueue() {
+  if (state.status !== 'running') return;
   while (state.status === 'running' && state.currentIndex < state.queue.length) {
     const video = state.queue[state.currentIndex];
 

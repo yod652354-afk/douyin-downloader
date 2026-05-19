@@ -7,9 +7,7 @@
     "downloads",
     "storage",
     "tabs",
-    "scripting",
-    "webRequest",
-    "declarativeNetRequest"
+    "scripting"
   ],
   "host_permissions": [
     "*://*.douyin.com/*",

@@ -3,6 +3,7 @@ console.log('[抖音下载器] content.js 注入成功，环境: ISOLATED world'
 
 // 监听来自页面 MAIN world 的消息
 window.addEventListener('message', (e) => {
+  if (e.origin !== 'https://www.douyin.com') return;
   if (!e.data || e.data.source !== '__douyinDL_page') return;
   console.log('[抖音下载器] 收到来自页面的消息:', e.data);
 
@@ -20,7 +21,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     (async () => {
       try {
         console.log('[抖音下载器] 开始在页面内通过 Fetch 下载视频...', msg.video.title);
-        const resp = await fetch(msg.video.url);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
+        const resp = await fetch(msg.video.url, { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (!resp.ok) {
           throw new Error('HTTP ' + resp.status);
         }
