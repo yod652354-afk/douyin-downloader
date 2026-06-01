@@ -257,15 +257,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   // content.js 注入就绪
   if (msg.type === 'CONTENT_READY') {
-    addLog('info', '页面已就绪');
-    // 如果正在等待扫描，自动触发
-    if (state.status === 'scanning') {
-      chrome.tabs.query({ url: '*://*.douyin.com/*' }, (tabs) => {
-        if (tabs[0]) {
-          chrome.tabs.sendMessage(tabs[0].id, { type: 'SCAN' });
-        }
-      });
-    }
+    state.contentReady = true;
     sendResponse({ ok: true });
   }
 
@@ -279,8 +271,31 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'CMD_SCAN') {
     state.status = 'scanning';
     state.queue = [];
-    addLog('info', '等待页面就绪后自动扫描...');
+    addLog('info', '开始扫描收藏夹...');
     broadcast();
+
+    const tryScan = (retryCount) => {
+      chrome.tabs.query({ url: '*://*.douyin.com/*' }, (tabs) => {
+        if (tabs.length === 0) {
+          state.status = 'idle';
+          broadcast({ error: '未找到抖音网页' });
+          return;
+        }
+        chrome.tabs.sendMessage(tabs[0].id, { type: 'SCAN' }, (response) => {
+          if (chrome.runtime.lastError) {
+            const msg = chrome.runtime.lastError.message || '';
+            if (msg.includes('Receiving end does not exist')) {
+              if (retryCount === 0) addLog('warn', '页面刷新中，等待恢复...');
+              setTimeout(() => tryScan(retryCount + 1), 3000);
+              return;
+            }
+            state.status = 'idle';
+            broadcast({ error: '请刷新抖音网页后重试' });
+          }
+        });
+      });
+    };
+    tryScan(0);
     sendResponse({ ok: true });
   }
 
