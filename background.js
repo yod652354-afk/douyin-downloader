@@ -88,7 +88,7 @@ async function captureComments(video, folderPath) {
         return;
       }
 
-      chrome.tabs.sendMessage(tabs[0].id, { type: 'CAPTURE_COMMENTS', awemeId: video.id, folderPath: folderPath, title: video.title }, (response) => {
+      chrome.tabs.sendMessage(tabs[0].id, { type: 'CAPTURE_COMMENTS', awemeId: video.id, folderPath: folderPath, title: video.title, author: video.author }, (response) => {
         if (chrome.runtime.lastError) {
           addLog('warn', '评论截图通信失败: ' + chrome.runtime.lastError.message);
           resolve(false);
@@ -102,6 +102,19 @@ async function captureComments(video, folderPath) {
               resolve(false);
             } else {
               addLog('success', '评论截图已保存 (id=' + downloadId + ')');
+
+              // 同时保存纯文本版评论
+              if (response.commentText) {
+                const textDataUrl = 'data:text/plain;charset=utf-8,' + encodeURIComponent(response.commentText);
+                chrome.downloads.download({ url: textDataUrl, filename: folderPath + '/评论.txt', saveAs: false }, (textId) => {
+                  if (chrome.runtime.lastError) {
+                    addLog('warn', '评论文本保存失败: ' + chrome.runtime.lastError.message);
+                  } else {
+                    addLog('success', '评论文本已保存 (id=' + textId + ')');
+                  }
+                });
+              }
+
               resolve(true);
             }
           });

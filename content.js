@@ -67,6 +67,27 @@ function topComments(comments, n) {
   return [...comments].sort((a, b) => (b.digg_count || 0) - (a.digg_count || 0)).slice(0, n);
 }
 
+function generateCommentText(title, totalCount, comments, author) {
+  const safeTitle = title.replace(/[<>&"']/g, '').substring(0, 80);
+  let text = '';
+  if (author) {
+    text += '@' + author + '\n\n';
+  }
+  text += '抖音评论 - ' + safeTitle + '\n';
+  text += '共获取 ' + totalCount + ' 条评论，以下为点赞最高的 ' + comments.length + ' 条\n';
+  text += '='.repeat(50) + '\n\n';
+
+  const medals = ['\u{1F947}', '\u{1F948}', '\u{1F949}']; // 🥇🥈🥉
+  for (let i = 0; i < comments.length; i++) {
+    const c = comments[i];
+    const prefix = medals[i] || ('  #' + (i + 1));
+    text += prefix + '  ' + c.nickname + '\n';
+    text += '     点赞: ' + c.likes.toLocaleString() + '\n';
+    text += '     ' + c.text + '\n\n';
+  }
+  return text;
+}
+
 async function avatarToDataUrl(comments) {
   const results = [];
   for (const c of comments) {
@@ -308,7 +329,7 @@ function blobToDataUrl(blob) {
   });
 }
 
-async function doCaptureComments(awemeId, title) {
+async function doCaptureComments(awemeId, title, author) {
   const comments = await fetchCommentsViaMain(awemeId);
   if (!comments || comments.length === 0) {
     logToBg('info', '视频 ' + title.substring(0, 20) + ' 暂无评论');
@@ -317,13 +338,25 @@ async function doCaptureComments(awemeId, title) {
 
   const top3 = topComments(comments, 3);
   logToBg('info', '获取到 ' + comments.length + ' 条评论，取 Top3');
+
+  // 文本取 Top10，图片取 Top3
+  const topText = topComments(comments, 10).map(c => ({
+    nickname: (c.user?.nickname || '用户').replace(/[<>&"']/g, ''),
+    text: (c.text || '').replace(/[<>&"']/g, '').substring(0, 200),
+    likes: c.digg_count || 0
+  }));
+
   const withAvatars = await avatarToDataUrl(top3);
+
+  // 生成纯文本版评论
+  const commentText = generateCommentText(title, comments.length, topText, author);
+
   const pngBlob = await renderToPngCanvas(title, withAvatars);
   if (!pngBlob) {
     return { ok: false, error: 'Canvas 渲染失败' };
   }
   const dataUrl = await blobToDataUrl(pngBlob);
-  return { ok: true, dataUrl: dataUrl };
+  return { ok: true, dataUrl: dataUrl, commentText: commentText };
 }
 
 // ===== 消息监听 =====
@@ -335,7 +368,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     sendResponse({ ok: true });
   } else if (msg.type === 'CAPTURE_COMMENTS') {
     logToBg('info', '开始截图评论: ' + (msg.title || '').substring(0, 30));
-    doCaptureComments(msg.awemeId, msg.title)
+    doCaptureComments(msg.awemeId, msg.title, msg.author || '')
       .then(result => {
         logToBg(result.ok && !result.noComments ? 'success' : 'info', '评论截图完成');
         sendResponse(result);
