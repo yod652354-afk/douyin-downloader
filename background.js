@@ -55,7 +55,7 @@ async function downloadVideo(video, folderPath) {
   const fname = sanitizeFilename(video.title).substring(0, 50) + '_' + (video.id || '').substring(0, 8) + '.mp4';
   const fullPath = folderPath + '/' + fname;
 
-  // 带连接重试的发送消息
+  // 带连接重试的发送消息（页面刷新时自动恢复）
   return new Promise((resolve) => {
     const trySend = (retryCount) => {
       chrome.tabs.query({ url: '*://*.douyin.com/*' }, (tabs) => {
@@ -67,18 +67,18 @@ async function downloadVideo(video, folderPath) {
         chrome.tabs.sendMessage(tabs[0].id, { type: 'DOWNLOAD_BLOB', video: video, folderPath: folderPath, filename: fullPath }, (response) => {
           if (chrome.runtime.lastError) {
             const msg = chrome.runtime.lastError.message || '';
-            if (msg.includes('Receiving end does not exist') && retryCount < 5) {
-              addLog('warn', '内容脚本未就绪，等待重试 (' + (retryCount + 1) + '/5)...');
-              setTimeout(() => trySend(retryCount + 1), 2000);
+            if (msg.includes('Receiving end does not exist')) {
+              addLog('warn', '页面刷新中，等待恢复 (' + (retryCount + 1) + ')...');
+              setTimeout(() => trySend(retryCount + 1), 3000);
               return;
             }
-            addLog('error', '下载通信失败: ' + msg + ' | tab=' + tabs[0].id + ' | file=' + fname);
+            addLog('error', '下载通信失败: ' + msg);
             resolve(false);
           } else if (response && response.ok) {
             addLog('success', '视频下载触发: ' + fname);
             resolve(true);
           } else {
-            addLog('error', '视频获取失败: ' + (response ? (response.error || '未知错误') : '无响应') + ' | url=' + (video.url || '').substring(0, 80));
+            addLog('error', '视频获取失败: ' + (response ? (response.error || '未知错误') : '无响应'));
             resolve(false);
           }
         });
@@ -102,8 +102,8 @@ async function captureComments(video, folderPath) {
       chrome.tabs.sendMessage(tabs[0].id, { type: 'CAPTURE_COMMENTS', awemeId: video.id, folderPath: folderPath, title: video.title, author: video.author }, (response) => {
         if (chrome.runtime.lastError) {
           const msg = chrome.runtime.lastError.message || '';
-          if (msg.includes('Receiving end does not exist') && retryCount < 3) {
-            addLog('warn', '内容脚本未就绪(截图)，等待重试 (' + (retryCount + 1) + '/3)...');
+          if (msg.includes('Receiving end does not exist')) {
+            addLog('warn', '页面刷新中(截图)，等待恢复...');
             setTimeout(() => trySend(retryCount + 1), 3000);
             return;
           }
