@@ -85,6 +85,7 @@ function fetchShareUrlViaMain(awemeId) {
     setTimeout(() => {
       if (pendingRequests[requestId]) {
         delete pendingRequests[requestId];
+        logToBg('warn', '分享链接请求超时: ' + awemeId);
         reject(new Error('分享链接请求超时'));
       }
     }, 5000);
@@ -359,7 +360,12 @@ function blobToDataUrl(blob) {
 async function doCaptureComments(awemeId, title, author) {
   // 获取分享短链接
   let shareUrl = '';
-  try { shareUrl = await fetchShareUrlViaMain(awemeId); } catch (e) {}
+  try {
+    shareUrl = await fetchShareUrlViaMain(awemeId);
+    logToBg('info', '分享链接: ' + (shareUrl || '空'));
+  } catch (e) {
+    logToBg('warn', '分享链接获取失败: ' + e.message);
+  }
 
   const comments = await fetchCommentsViaMain(awemeId);
   if (!comments || comments.length === 0) {

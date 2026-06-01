@@ -196,10 +196,17 @@ window.addEventListener('message', (e) => {
     if (cachedParams.webid) params.set('webid', cachedParams.webid);
     if (cachedParams.msToken) params.set('msToken', cachedParams.msToken);
 
+    console.log('[抖音下载器] 请求分享链接: awemeId=' + awemeId);
     window.fetch(base + '?' + params.toString(), { credentials: 'include' })
       .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
-      .then(d => window.postMessage({ source: '__douyinDL_page', type: 'SHARE_URL_RESPONSE', requestId, ok: true, shortUrl: d?.short_url || '' }, '*'))
-      .catch(e => window.postMessage({ source: '__douyinDL_page', type: 'SHARE_URL_RESPONSE', requestId, ok: false, error: e.message }, '*'));
+      .then(d => {
+        console.log('[抖音下载器] 分享链接结果: ' + (d?.short_url || '空'));
+        window.postMessage({ source: '__douyinDL_page', type: 'SHARE_URL_RESPONSE', requestId, ok: true, shortUrl: d?.short_url || '' }, '*');
+      })
+      .catch(e => {
+        console.error('[抖音下载器] 分享链接请求失败: ' + e.message);
+        window.postMessage({ source: '__douyinDL_page', type: 'SHARE_URL_RESPONSE', requestId, ok: false, error: e.message }, '*');
+      });
   }
 });
 
