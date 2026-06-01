@@ -64,13 +64,13 @@ async function downloadVideo(video, folderPath) {
       }
       chrome.tabs.sendMessage(tabs[0].id, { type: 'DOWNLOAD_BLOB', video: video, folderPath: folderPath, filename: fullPath }, (response) => {
         if (chrome.runtime.lastError) {
-          addLog('error', '下载通信失败: ' + chrome.runtime.lastError.message + ' | tab=' + tabs[0].id);
+          addLog('error', '下载通信失败: ' + chrome.runtime.lastError.message + ' | tab=' + tabs[0].id + ' | file=' + fname);
           resolve(false);
         } else if (response && response.ok) {
-          addLog('success', '视频下载触发: ' + fname);
+          addLog('success', '视频下载触发: ' + fname + ' | size=' + ((video.duration||0)/1000).toFixed(0) + 's');
           resolve(true);
         } else {
-          addLog('error', '视频获取失败: ' + (response ? response.error : '未知错误') + ' | title=' + video.title.substring(0, 30) + ' | url=' + (video.url || '').substring(0, 80));
+          addLog('error', '视频获取失败: ' + (response ? (response.error || '未知错误') : '无响应') + ' | title=' + video.title.substring(0, 30) + ' | url=' + (video.url || '').substring(0, 80));
           resolve(false);
         }
       });
