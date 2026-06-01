@@ -200,8 +200,9 @@ window.addEventListener('message', (e) => {
     window.fetch(base + '?' + params.toString(), { credentials: 'include' })
       .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
       .then(d => {
-        console.log('[抖音下载器] 分享链接结果: ' + (d?.short_url || '空'));
-        window.postMessage({ source: '__douyinDL_page', type: 'SHARE_URL_RESPONSE', requestId, ok: true, shortUrl: d?.short_url || '' }, '*');
+        const result = d?.short_url || d?.data?.short_url || d?.share_url || JSON.stringify(d).substring(0, 200);
+        console.log('[抖音下载器] 分享链接API响应: ' + result);
+        window.postMessage({ source: '__douyinDL_page', type: 'SHARE_URL_RESPONSE', requestId, ok: true, shortUrl: d?.short_url || d?.data?.short_url || '' }, '*');
       })
       .catch(e => {
         console.error('[抖音下载器] 分享链接请求失败: ' + e.message);
