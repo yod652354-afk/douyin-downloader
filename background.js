@@ -46,8 +46,8 @@ function sanitizeFilename(name) {
 // 构造文件夹路径
 function folderPath(video) {
   const desc = sanitizeFilename(video.title).substring(0, 50);
-  const shortId = (video.id || '').substring(0, 8);
-  return state.downloadFolder + '/' + desc + '_' + shortId;
+  const author = sanitizeFilename(video.author);
+  return state.downloadFolder + '/' + desc + '-' + author;
 }
 
 // 执行单个视频下载（通过 content script 的 fetch blob → ArrayBuffer → background 下载）
