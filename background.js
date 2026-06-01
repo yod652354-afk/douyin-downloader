@@ -332,15 +332,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const filename = msg.filename || 'video.mp4';
       chrome.downloads.download({ url: msg.dataUrl, filename: filename, saveAs: false }, (downloadId) => {
         if (chrome.runtime.lastError) {
-          addLog('error', '视频保存失败: ' + chrome.runtime.lastError.message);
+          addLog('error', '视频保存失败: ' + chrome.runtime.lastError.message + ' | file=' + filename);
+          sendResponse({ ok: false, error: chrome.runtime.lastError.message });
         } else {
           addLog('success', '视频已保存: ' + filename + ' (id=' + downloadId + ')');
         }
       });
       sendResponse({ ok: true });
     } catch (e) {
-      addLog('error', '处理视频数据失败: ' + e.message);
-      sendResponse({ ok: false });
+      addLog('error', '处理视频数据失败: ' + e.message + ' | file=' + (msg.filename || 'unknown'));
+      sendResponse({ ok: false, error: e.message });
     }
   }
 
