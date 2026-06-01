@@ -412,22 +412,22 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   } else if (msg.type === 'DOWNLOAD_BLOB') {
     (async () => {
       try {
-        logToBg('info', '开始获取视频: ' + (msg.video.title || '').substring(0, 30));
+        logToBg('info', '开始获取视频: ' + (msg.video.title || '').substring(0, 30) + ' | URL: ' + (msg.video.url || '').substring(0, 80));
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 120000);
         const resp = await fetch(msg.video.url, { signal: controller.signal });
         clearTimeout(timeoutId);
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status + ' ' + resp.statusText);
 
         const blob = await resp.blob();
         const sizeMB = (blob.size / 1024 / 1024).toFixed(1);
         logToBg('info', '视频获取完成, 大小: ' + sizeMB + 'MB, 发送中...');
 
-        // 用 FileReader 转 base64 传输（33% 开销，支持约 40MB 视频）
+        // 用 FileReader 转 base64 传输
         const dataUrl = await new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result);
-          reader.onerror = () => reject(new Error('读取文件失败'));
+          reader.onerror = () => reject(new Error('FileReader读取失败'));
           reader.readAsDataURL(blob);
         });
 
@@ -439,7 +439,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         });
         sendResponse({ ok: true });
       } catch (e) {
-        logToBg('error', '视频获取失败: ' + e.message);
+        logToBg('error', '视频下载异常: ' + e.message + ' | URL: ' + (msg.video.url || '').substring(0, 100));
         sendResponse({ ok: false, error: e.message });
       }
     })();

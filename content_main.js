@@ -1,3 +1,4 @@
+try {
 console.log('[抖音下载器] 拦截器已启动，等待页面加载数据...');
 
 // 缓存可复用的反爬参数（从拦截的请求 URL 中提取）
@@ -200,4 +201,11 @@ window.addEventListener('message', (e) => {
       .then(d => window.postMessage({ source: '__douyinDL_page', type: 'SHARE_URL_RESPONSE', requestId, ok: true, shortUrl: d?.short_url || '' }, '*'))
       .catch(e => window.postMessage({ source: '__douyinDL_page', type: 'SHARE_URL_RESPONSE', requestId, ok: false, error: e.message }, '*'));
   }
+});
+
+} catch (e) {
+  console.error('[抖音下载器] 拦截器启动失败:', e.message, e.stack);
+}
+window.addEventListener('error', (e) => {
+  console.error('[抖音下载器] 全局错误:', e.message, 'at', e.filename, ':', e.lineno);
 });
