@@ -55,32 +55,43 @@ async function downloadVideo(video, folderPath) {
   const fname = sanitizeFilename(video.title).substring(0, 50) + '_' + (video.id || '').substring(0, 8) + '.mp4';
   const fullPath = folderPath + '/' + fname;
 
+  // 带连接重试的发送消息
   return new Promise((resolve) => {
-    chrome.tabs.query({ url: '*://*.douyin.com/*' }, (tabs) => {
-      if (tabs.length === 0) {
-        addLog('error', '下载失败: 未找到抖音页面');
-        resolve(false);
-        return;
-      }
-      chrome.tabs.sendMessage(tabs[0].id, { type: 'DOWNLOAD_BLOB', video: video, folderPath: folderPath, filename: fullPath }, (response) => {
-        if (chrome.runtime.lastError) {
-          addLog('error', '下载通信失败: ' + chrome.runtime.lastError.message + ' | tab=' + tabs[0].id + ' | file=' + fname);
+    const trySend = (retryCount) => {
+      chrome.tabs.query({ url: '*://*.douyin.com/*' }, (tabs) => {
+        if (tabs.length === 0) {
+          addLog('error', '下载失败: 未找到抖音页面');
           resolve(false);
-        } else if (response && response.ok) {
-          addLog('success', '视频下载触发: ' + fname + ' | size=' + ((video.duration||0)/1000).toFixed(0) + 's');
-          resolve(true);
-        } else {
-          addLog('error', '视频获取失败: ' + (response ? (response.error || '未知错误') : '无响应') + ' | title=' + video.title.substring(0, 30) + ' | url=' + (video.url || '').substring(0, 80));
-          resolve(false);
+          return;
         }
+        chrome.tabs.sendMessage(tabs[0].id, { type: 'DOWNLOAD_BLOB', video: video, folderPath: folderPath, filename: fullPath }, (response) => {
+          if (chrome.runtime.lastError) {
+            const msg = chrome.runtime.lastError.message || '';
+            if (msg.includes('Receiving end does not exist') && retryCount < 5) {
+              addLog('warn', '内容脚本未就绪，等待重试 (' + (retryCount + 1) + '/5)...');
+              setTimeout(() => trySend(retryCount + 1), 2000);
+              return;
+            }
+            addLog('error', '下载通信失败: ' + msg + ' | tab=' + tabs[0].id + ' | file=' + fname);
+            resolve(false);
+          } else if (response && response.ok) {
+            addLog('success', '视频下载触发: ' + fname);
+            resolve(true);
+          } else {
+            addLog('error', '视频获取失败: ' + (response ? (response.error || '未知错误') : '无响应') + ' | url=' + (video.url || '').substring(0, 80));
+            resolve(false);
+          }
+        });
       });
-    });
+    };
+    trySend(0);
   });
 }
 
 // 获取评论截图（转发给 content.js 渲染后接收 base64 PNG，由 background 下载）
 async function captureComments(video, folderPath) {
   return new Promise((resolve) => {
+    const trySend = (retryCount) => {
     chrome.tabs.query({ url: '*://*.douyin.com/*' }, (tabs) => {
       if (tabs.length === 0) {
         addLog('warn', '评论截图跳过: 未找到抖音页面');
@@ -90,7 +101,13 @@ async function captureComments(video, folderPath) {
 
       chrome.tabs.sendMessage(tabs[0].id, { type: 'CAPTURE_COMMENTS', awemeId: video.id, folderPath: folderPath, title: video.title, author: video.author }, (response) => {
         if (chrome.runtime.lastError) {
-          addLog('warn', '评论截图通信失败: ' + chrome.runtime.lastError.message);
+          const msg = chrome.runtime.lastError.message || '';
+          if (msg.includes('Receiving end does not exist') && retryCount < 3) {
+            addLog('warn', '内容脚本未就绪(截图)，等待重试 (' + (retryCount + 1) + '/3)...');
+            setTimeout(() => trySend(retryCount + 1), 3000);
+            return;
+          }
+          addLog('warn', '评论截图通信失败: ' + msg);
           resolve(false);
           return;
         }
@@ -128,6 +145,8 @@ async function captureComments(video, folderPath) {
         }
       });
     });
+    };
+    trySend(0);
   });
 }
 
