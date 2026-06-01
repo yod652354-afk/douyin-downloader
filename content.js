@@ -40,6 +40,15 @@ window.addEventListener('message', (e) => {
       }
     }
   }
+  if (e.data.type === 'SHARE_URL_RESPONSE') {
+    const { requestId, ok, shortUrl, error } = e.data;
+    const pending = pendingRequests[requestId];
+    if (pending) {
+      delete pendingRequests[requestId];
+      if (ok && shortUrl) pending.resolve(shortUrl);
+      else pending.reject(new Error(error || '获取分享链接失败'));
+    }
+  }
 });
 
 function fetchCommentsViaMain(awemeId) {
@@ -63,17 +72,35 @@ function fetchCommentsViaMain(awemeId) {
   });
 }
 
+function fetchShareUrlViaMain(awemeId) {
+  return new Promise((resolve, reject) => {
+    const requestId = ++reqIdCounter;
+    pendingRequests[requestId] = { resolve, reject };
+    window.postMessage({
+      source: '__douyinDL_bridge',
+      type: 'FETCH_SHARE_URL',
+      awemeId,
+      requestId
+    }, '*');
+    setTimeout(() => {
+      if (pendingRequests[requestId]) {
+        delete pendingRequests[requestId];
+        reject(new Error('分享链接请求超时'));
+      }
+    }, 5000);
+  });
+}
+
 function topComments(comments, n) {
   return [...comments].sort((a, b) => (b.digg_count || 0) - (a.digg_count || 0)).slice(0, n);
 }
 
-function generateCommentText(title, totalCount, comments, author) {
+function generateCommentText(title, totalCount, comments, author, shareUrl) {
   const safeTitle = title.replace(/[<>&"']/g, '').substring(0, 80);
   let text = '';
-  if (author) {
-    text += '@' + author + '\n\n';
-  }
-  text += '抖音评论 - ' + safeTitle + '\n';
+  if (author) text += '@' + author + '\n';
+  if (shareUrl) text += '🔗 ' + shareUrl + '\n';
+  text += '\n抖音评论 - ' + safeTitle + '\n';
   text += '共获取 ' + totalCount + ' 条评论，以下为点赞最高的 ' + comments.length + ' 条\n';
   text += '='.repeat(50) + '\n\n';
 
@@ -330,6 +357,10 @@ function blobToDataUrl(blob) {
 }
 
 async function doCaptureComments(awemeId, title, author) {
+  // 获取分享短链接
+  let shareUrl = '';
+  try { shareUrl = await fetchShareUrlViaMain(awemeId); } catch (e) {}
+
   const comments = await fetchCommentsViaMain(awemeId);
   if (!comments || comments.length === 0) {
     logToBg('info', '视频 ' + title.substring(0, 20) + ' 暂无评论');
@@ -339,7 +370,7 @@ async function doCaptureComments(awemeId, title, author) {
   const top3 = topComments(comments, 3);
   logToBg('info', '获取到 ' + comments.length + ' 条评论，取 Top3');
 
-  // 文本取 Top10，图片取 Top3
+  // 文本取 Top10
   const topText = topComments(comments, 10).map(c => ({
     nickname: (c.user?.nickname || '用户').replace(/[<>&"']/g, ''),
     text: (c.text || '').replace(/[<>&"']/g, '').substring(0, 200),
@@ -348,8 +379,8 @@ async function doCaptureComments(awemeId, title, author) {
 
   const withAvatars = await avatarToDataUrl(top3);
 
-  // 生成纯文本版评论
-  const commentText = generateCommentText(title, comments.length, topText, author);
+  // 生成纯文本版评论（含分享链接）
+  const commentText = generateCommentText(title, comments.length, topText, author, shareUrl);
 
   const pngBlob = await renderToPngCanvas(title, withAvatars);
   if (!pngBlob) {

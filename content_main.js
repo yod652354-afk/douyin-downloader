@@ -177,4 +177,27 @@ window.addEventListener('message', (e) => {
         }, '*');
       });
   }
+
+  if (e.data.type === 'FETCH_SHARE_URL') {
+    const { awemeId, requestId } = e.data;
+    const base = 'https://www.douyin.com/aweme/v1/web/web_shorten/';
+    const target = 'https://www.iesdouyin.com/share/video/' + awemeId + '/';
+    const params = new URLSearchParams({
+      target: target, belong: 'aweme', persist: '1',
+      device_platform: cachedParams.device_platform || 'webapp',
+      aid: cachedParams.aid || '6383',
+      channel: cachedParams.channel || 'channel_pc_web',
+      pc_client_type: '1', version_code: '170400', version_name: '17.4.0',
+      cookie_enabled: 'true', browser_language: 'zh-CN',
+      browser_platform: 'Win32', browser_name: 'Chrome',
+      screen_width: '1920', screen_height: '1080', platform: 'PC'
+    });
+    if (cachedParams.webid) params.set('webid', cachedParams.webid);
+    if (cachedParams.msToken) params.set('msToken', cachedParams.msToken);
+
+    window.fetch(base + '?' + params.toString(), { credentials: 'include' })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+      .then(d => window.postMessage({ source: '__douyinDL_page', type: 'SHARE_URL_RESPONSE', requestId, ok: true, shortUrl: d?.short_url || '' }, '*'))
+      .catch(e => window.postMessage({ source: '__douyinDL_page', type: 'SHARE_URL_RESPONSE', requestId, ok: false, error: e.message }, '*'));
+  }
 });
