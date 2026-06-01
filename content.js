@@ -1,5 +1,8 @@
 console.log('[抖音下载器] content.js 注入成功，环境: ISOLATED world');
 
+// 注入成功后通知 background 已就绪
+chrome.runtime.sendMessage({ type: 'CONTENT_READY' }).catch(() => {});
+
 // 转发日志到 background
 function logToBg(type, msg) {
   console.log('[抖音下载器][' + type + '] ' + msg);

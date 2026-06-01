@@ -255,6 +255,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
   }
 
+  // content.js 注入就绪
+  if (msg.type === 'CONTENT_READY') {
+    addLog('info', '页面已就绪');
+    // 如果正在等待扫描，自动触发
+    if (state.status === 'scanning') {
+      chrome.tabs.query({ url: '*://*.douyin.com/*' }, (tabs) => {
+        if (tabs[0]) {
+          chrome.tabs.sendMessage(tabs[0].id, { type: 'SCAN' });
+        }
+      });
+    }
+    sendResponse({ ok: true });
+  }
+
   // 来自 content.js 的日志转发
   if (msg.type === 'LOG') {
     addLog(msg.logType || 'info', '[页面] ' + msg.message);
@@ -265,33 +279,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'CMD_SCAN') {
     state.status = 'scanning';
     state.queue = [];
-    addLog('info', '开始扫描收藏夹...');
+    addLog('info', '等待页面就绪后自动扫描...');
     broadcast();
-
-    const tryScan = (retryCount) => {
-      chrome.tabs.query({ url: '*://*.douyin.com/*' }, (tabs) => {
-        if (tabs.length === 0) {
-          state.status = 'idle';
-          addLog('warn', '未找到抖音网页，请打开并刷新');
-          broadcast({ error: '未找到抖音网页，请打开并刷新' });
-          return;
-        }
-        chrome.tabs.sendMessage(tabs[0].id, { type: 'SCAN' }, (response) => {
-          if (chrome.runtime.lastError) {
-            const msg = chrome.runtime.lastError.message || '';
-            if (msg.includes('Receiving end does not exist')) {
-              addLog('warn', '页面刷新中(扫描)，等待恢复...');
-              setTimeout(() => tryScan(retryCount + 1), 3000);
-              return;
-            }
-            addLog('warn', 'Content script 未响应扫描指令');
-            state.status = 'idle';
-            broadcast({ error: '请先刷新抖音网页再点击扫描' });
-          }
-        });
-      });
-    };
-    tryScan(0);
     sendResponse({ ok: true });
   }
 
