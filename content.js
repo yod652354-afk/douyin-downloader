@@ -100,7 +100,7 @@ function generateCommentText(title, totalCount, comments, author, shareUrl) {
   const safeTitle = title.replace(/[<>&"']/g, '').substring(0, 80);
   let text = '';
   if (author) text += '@' + author + '\n';
-  if (shareUrl) text += '🔗 ' + shareUrl + '\n';
+  if (shareUrl) text += shareUrl + '\n';
   text += '\n抖音评论 - ' + safeTitle + '\n';
   text += '共获取 ' + totalCount + ' 条评论，以下为点赞最高的 ' + comments.length + ' 条\n';
   text += '='.repeat(50) + '\n\n';
